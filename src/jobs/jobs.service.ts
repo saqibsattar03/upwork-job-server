@@ -38,6 +38,10 @@ export class JobsService {
   async getAllCategories(): Promise<any> {
     // this.jobModel.collection('upworkjobs').distinct('categories');
     const categories = await this.jobModel.distinct('categories');
+    // const categories = await this.jobModel
+    //   .find({})
+    //   .select('categories')
+    //   .limit(10);
     return categories;
   }
   async getMostJobPostedByDay(): Promise<any> {
@@ -144,59 +148,127 @@ export class JobsService {
     }
   }
 
-  async getJobCategoryPercentage(): Promise<any> {
-    const res = await this.jobModel
-      .aggregate([
-        {
-          $facet: {
-            total: [
-              {
-                $count: 'count',
-              },
-            ],
-            groups: [
-              {
-                $group: {
-                  _id: '$categories',
-                  count: {
-                    $sum: 1,
-                  },
+  async getJobCategoryPercentage(categories): Promise<any> {
+    console.log('categories = ', categories);
+    const res = await this.jobModel.aggregate([
+      {
+        $facet: {
+          total: [
+            {
+              $count: 'count',
+            },
+          ],
+          jobTitle: [
+            {
+              $match: {
+                categories: {
+                  $in: categories,
                 },
               },
+            },
+            {
+              $group: {
+                _id: '$categories',
+                jobCount: {
+                  $sum: 1,
+                },
+              },
+            },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          total: {
+            $first: '$total.count',
+          },
+        },
+      },
+      {
+        $unwind: {
+          path: '$jobTitle',
+        },
+      },
+      {
+        $addFields: {
+          percentageOfTotal: {
+            $multiply: [
+              {
+                $divide: ['$jobTitle.jobCount', '$total'],
+              },
+              100,
             ],
           },
         },
-        {
-          $addFields: {
-            total: {
-              $first: '$total.count',
-            },
-          },
-        },
-        {
-          $unwind: {
-            path: '$groups',
-          },
-        },
-        {
-          $addFields: {
-            percentageOfTotal: {
-              $multiply: [
-                {
-                  $divide: ['$groups.count', '$total'],
-                },
-                100,
-              ],
-            },
-          },
-        },
-        {
-          $sort: { _id: -1 },
-        },
-      ])
-      .limit(5000);
+      },
+      {
+        $sort: { _id: -1 },
+      },
+    ]);
+    // .limit(5000);
     return res;
   }
+
+  // async getJobCategoryPercentageWithParameter(categories): Promise<any> {
+  //   console.log('categoreis  =', categories);
+  //   const res = await this.jobModel.aggregate([
+  //     {
+  //       $facet: {
+  //         total: [
+  //           {
+  //             $count: 'count',
+  //           },
+  //         ],
+  //         jobTitle: [
+  //           {
+  //             $match: {
+  //               categories: {
+  //                 $in: categories,
+  //               },
+  //             },
+  //           },
+  //           {
+  //             $group: {
+  //               _id: '$categories',
+  //               jobCount: {
+  //                 $sum: 1,
+  //               },
+  //             },
+  //           },
+  //         ],
+  //       },
+  //     },
+  //     {
+  //       $addFields: {
+  //         total: {
+  //           $first: '$total.count',
+  //         },
+  //       },
+  //     },
+  //     {
+  //       $unwind: {
+  //         path: '$jobTitle',
+  //       },
+  //     },
+  //     {
+  //       $addFields: {
+  //         percentageOfTotal: {
+  //           $multiply: [
+  //             {
+  //               $divide: ['$jobTitle.jobCount', '$total'],
+  //             },
+  //             100,
+  //           ],
+  //         },
+  //       },
+  //     },
+  //     {
+  //       $sort: { _id: -1 },
+  //     },
+  //   ]);
+  //   // .limit(5000);
+  //   return res;
+  // }
 
   async getSkillsInDemand(date): Promise<any> {
     if (date) {
@@ -268,8 +340,10 @@ export class JobsService {
               publishedAt: {
                 //Replace with date variable to get the exact result
 
-                $gt: new Date('2022-12-07T06:46:25.000Z'),
-                $lt: new Date('2023-01-07T06:46:25.000Z'),
+                $lt: new Date(startDate),
+                $gt: new Date(endDate),
+                // $gt: new Date('2022-12-07T06:46:25.000Z'),
+                // $lt: new Date('2023-01-07T06:46:25.000Z'),
               },
             },
           },
@@ -287,21 +361,16 @@ export class JobsService {
       );
       return res;
     } else {
-      const lol1 = moment().subtract(30, 'days').calendar();
-      const lol2 = moment();
-      console.log('lol1 = ', lol1);
-      console.log('lol2= ', lol2);
-      //console.log('date = ', date);
+      const date = new Date();
+      console.log('date = ', date);
       const res = await this.jobModel.aggregate(
         [
           { $unwind: '$skills' },
           {
             $match: {
               publishedAt: {
-                //Replace with date variable to get the exact result
-
-                $gt: moment().subtract(30, 'days').calendar(),
-                $lt: moment(),
+                $lt: new Date(),
+                $gte: new Date(new Date().setDate(new Date().getDate() - 30)),
               },
             },
           },
@@ -317,7 +386,8 @@ export class JobsService {
         ],
         { allowDiskUse: true },
       );
+      return res;
     }
-    return null;
+    // return null;
   }
 }

@@ -21,7 +21,6 @@ export class JobsController {
   getAllCategories() {
     return this.jobService.getAllCategories();
   }
-
   @Get('most-job-posted-by-day')
   getMostJobPostedByDay() {
     return this.jobService.getMostJobPostedByDay();
@@ -37,9 +36,14 @@ export class JobsController {
   }
 
   @Get('get-category-percentage')
-  getJobCategoryPercentage() {
-    return this.jobService.getJobCategoryPercentage();
+  getJobCategoryPercentage(@Query('categories') categories: []) {
+    return this.jobService.getJobCategoryPercentage(categories);
   }
+
+  // @Get('get-categories')
+  // getJobCategoryPercentageWithParameter(@Query('categories') categories: []) {
+  //   return this.jobService.getJobCategoryPercentageWithParameter(categories);
+  // }
   @Get('skills-in-demand')
   getSkillsInDemand(@Query('date') date: Date) {
     return this.jobService.getSkillsInDemand(date);
