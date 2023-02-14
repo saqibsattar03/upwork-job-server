@@ -55,6 +55,15 @@ export class JobsController {
       endDate,
     );
   }
+
+  @Get('get-jobs-weekly')
+  getJobPostedWeekly(
+    @Query('categories') categories: [],
+    @Query('startDate') startDate: Date,
+    @Query('endDate') endDate: Date,
+  ) {
+    return this.jobService.getJobPostedWeekly(categories, startDate, endDate);
+  }
   @Get('skills-in-demand')
   getSkillsInDemand(@Query('date') date: Date) {
     return this.jobService.getSkillsInDemand(date);
