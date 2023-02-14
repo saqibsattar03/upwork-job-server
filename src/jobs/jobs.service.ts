@@ -36,10 +36,6 @@ export class JobsService {
   }
   async getAllCategories(): Promise<any> {
     const categories = await this.jobModel.distinct('categories');
-    // const categories = await this.jobModel
-    //   .find({})
-    //   .select('categories')
-    //   .limit(10);
     return categories;
   }
   async getMostJobPostedOverTimePeriod(
@@ -160,6 +156,11 @@ export class JobsService {
                   date: '$publishedAt',
                 },
               },
+            },
+          },
+          {
+            $addFields: {
+              categories: categories,
             },
           },
           {
@@ -368,6 +369,11 @@ export class JobsService {
     // .limit(5000);
     // return res;
   }
+
+  async getAllSkills() {
+    const skills = await this.jobModel.distinct('skills');
+    return skills;
+  }
   async getSkillsInDemand(date): Promise<any> {
     if (date) {
       console.log('in date condition ');
@@ -397,7 +403,7 @@ export class JobsService {
             },
           },
           {
-            $sort: { _id: -1 },
+            $sort: { _id: 1 },
           },
         ],
         { allowDiskUse: true },
@@ -426,13 +432,18 @@ export class JobsService {
     }
   }
 
-  async getSkillsOverTimePeriod(startDate, endDate): Promise<any> {
+  async getSkillsOverTimePeriod(skills, startDate, endDate): Promise<any> {
     if (startDate && endDate) {
-      console.log('in date condition ');
-      //console.log('date = ', date);
       const res = await this.jobModel.aggregate(
         [
           { $unwind: '$skills' },
+          {
+            $match: {
+              skills: {
+                $in: skills,
+              },
+            },
+          },
           {
             $match: {
               publishedAt: {
@@ -440,52 +451,59 @@ export class JobsService {
 
                 $lt: new Date(startDate),
                 $gt: new Date(endDate),
-                // $gt: new Date('2022-12-07T06:46:25.000Z'),
-                // $lt: new Date('2023-01-07T06:46:25.000Z'),
               },
             },
           },
           {
             $group: {
               _id: '$skills',
-              SkillsCount: { $sum: 1 },
+              skillsCount: { $sum: 1 },
             },
           },
           {
-            $sort: { _id: -1 },
+            $sort: { skillsCount: -1 },
           },
         ],
         { allowDiskUse: true },
       );
+      return res;
+    } else if (skills && !startDate && !endDate) {
+      const res = await this.jobModel.aggregate([
+        { $unwind: '$skills' },
+        {
+          $match: {
+            skills: {
+              $in: skills,
+            },
+          },
+        },
+        {
+          $group: {
+            _id: '$skills',
+            skillsCount: { $sum: 1 },
+          },
+        },
+        {
+          $sort: { skillsCount: -1 },
+        },
+      ]);
       return res;
     } else {
-      const date = new Date();
-      console.log('date = ', date);
-      const res = await this.jobModel.aggregate(
-        [
+      const res = await this.jobModel
+        .aggregate([
           { $unwind: '$skills' },
-          {
-            $match: {
-              publishedAt: {
-                $lt: new Date(),
-                $gte: new Date(new Date().setDate(new Date().getDate() - 30)),
-              },
-            },
-          },
           {
             $group: {
               _id: '$skills',
-              SkillsCount: { $sum: 1 },
+              skillsCount: { $sum: 1 },
             },
           },
           {
-            $sort: { _id: -1 },
+            $sort: { skillsCount: -1 },
           },
-        ],
-        { allowDiskUse: true },
-      );
+        ])
+        .limit(10);
       return res;
     }
-    // return null;
   }
 }
