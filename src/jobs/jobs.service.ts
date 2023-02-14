@@ -372,32 +372,30 @@ export class JobsService {
 
   async getJobPostedWeekly(categories, startDate, endDate): Promise<any> {
     if (categories && startDate && endDate) {
-      const res = await this.jobModel
-        .aggregate([
-          {
-            $match: {
-              publishedAt: {
-                $lt: new Date(startDate),
-                $gte: new Date(endDate),
-              },
+      const res = await this.jobModel.aggregate([
+        {
+          $match: {
+            publishedAt: {
+              $lt: new Date(startDate),
+              $gte: new Date(endDate),
             },
           },
-          {
-            $match: {
-              categories: {
-                $in: categories,
-              },
+        },
+        {
+          $match: {
+            categories: {
+              $in: categories,
             },
           },
-          {
-            $group: {
-              _id: { $dayOfWeek: '$publishedAt' },
-              count: { $sum: 1 },
-            },
+        },
+        {
+          $group: {
+            _id: { $dayOfWeek: '$publishedAt' },
+            count: { $sum: 1 },
           },
-          { $sort: { _id: 1 } },
-        ])
-        .limit(10);
+        },
+        { $sort: { _id: 1 } },
+      ]);
       return res;
     } else if (categories && !startDate && !endDate) {
       const res = await this.jobModel.aggregate([
@@ -405,8 +403,8 @@ export class JobsService {
           $match: {
             publishedAt: {
               //*** calculating previous 1 week ***//
-              $lt: new Date(),
-              $gte: new Date(new Date().setDate(new Date().getDate() - 8)),
+              $lte: new Date(),
+              $gte: new Date(new Date().setDate(new Date().getDate() - 7)),
             },
           },
         },
