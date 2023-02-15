@@ -376,7 +376,7 @@ export class JobsService {
         {
           $match: {
             publishedAt: {
-              $lt: new Date(startDate),
+              $lte: new Date(startDate),
               $gte: new Date(endDate),
             },
           },
