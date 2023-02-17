@@ -26,11 +26,13 @@ export class JobsController {
     @Query('startDate') startDate: Date,
     @Query('endDate') endDate: Date,
     @Query('categories') categories: [],
+    @Query('day') day: number,
   ) {
     return this.jobService.getMostJobPostedOverTimePeriod(
       startDate,
       endDate,
       categories,
+      day,
     );
   }
 

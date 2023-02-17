@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { upworkjob, UpworkJobDocument } from '../Schemas/job.schema';
 import { PaginationQueryDto } from '../common/dto/pagiation-query.dto/pagination-query.dto';
 import { FilterDataDto } from '../common/dto/filter-data.dto/filter-data.dto';
+import * as moment from 'moment';
 
 @Injectable()
 export class JobsService {
@@ -38,188 +39,6 @@ export class JobsService {
     const categories = await this.jobModel.distinct('categories');
     return categories;
   }
-  async getMostJobPostedOverTimePeriod(
-    startDate,
-    endDate,
-    categories,
-  ): Promise<any> {
-    if (categories && startDate && endDate) {
-      const res = await this.jobModel.aggregate(
-        [
-          {
-            $match: {
-              publishedAt: {
-                $lt: new Date(startDate),
-                $gte: new Date(endDate),
-              },
-            },
-          },
-
-          //*** uncomment the lines below to get the specific job data ***//
-          {
-            $match: {
-              categories: {
-                $in: categories,
-              },
-            },
-          },
-          {
-            $addFields: {
-              uniqueHour: {
-                $dateToString: {
-                  format: '%H',
-
-                  //*** uncomment the line below to get the daily jobs on hourly basis with date ***//
-                  // format: '%Y-%m-%d-%H',
-                  date: '$publishedAt',
-                },
-              },
-            },
-          },
-          {
-            $group: {
-              _id: '$uniqueHour',
-              // _id: {
-              //   // "year":{"$year":"$date"},
-              //   hour: { $hour: '$publishedAt' },
-              // },
-
-              //*** below lines are to get data for specific minutes range like 60 minutes ***///
-
-              // first: { $first: '$$ROOT' },
-              // _id: {
-              //   // year: { $year: '$publishedAt' },
-              //   // dayOfYear: { $dayOfYear: '$publishedAt' },
-              //   // hour: { $hour: '$publishedAt' },
-              //   // interval: [
-              //   //   {
-              //   //     $minute: '$publishedAt',
-              //   //   },
-              //   //   { $mod: [{ $minute: '$publishedAt' }, 60] },
-              //   // ],
-              //   $dateToString: {
-              //     format: '%Y-%m-%d-%H',
-              //     date: '$publishedAt',
-              //   },
-              //   // hour: '$hour',
-              // },
-
-              //*** To Get Documents also, uncomment line below *** //
-
-              //totalJobPosted: { $push: '$$ROOT' },
-              count: { $sum: 1 },
-            },
-          },
-
-          //*** below group is to get data on hourly basis for time period provided, Time should be provided in match section ***//
-
-          // {
-          //   $group: {
-          //     _id: {
-          //       hour: '$_id.hour',
-          //     },
-          //
-          //     //dailyCount: { $sum: '$count' },
-          //     hourlyData: {
-          //       $push: { hour: '$_id.hour', count: '$count' },
-          //     },
-          //   },
-          // },
-          {
-            $sort: { _id: -1 },
-          },
-        ],
-        { allowDiskUse: true },
-      );
-      // .limit(1000);
-
-      return res;
-    } else if (categories && !startDate && !endDate) {
-      const res = await this.jobModel.aggregate(
-        [
-          //*** uncomment the lines below to get the specific job data ***//
-          {
-            $match: {
-              categories: {
-                $in: categories,
-              },
-            },
-          },
-          {
-            $addFields: {
-              uniqueHour: {
-                $dateToString: {
-                  format: '%H',
-
-                  //*** uncomment the line below to get the daily jobs on hourly basis with date ***//
-                  // format: '%Y-%m-%d-%H',
-                  date: '$publishedAt',
-                },
-              },
-            },
-          },
-          {
-            $addFields: {
-              categories: categories,
-            },
-          },
-          {
-            $group: {
-              _id: '$uniqueHour',
-
-              //*** below lines are to get data for specific minutes range like 60 minutes ***///
-
-              // first: { $first: '$$ROOT' },
-              // _id: {
-              //   // year: { $year: '$publishedAt' },
-              //   // dayOfYear: { $dayOfYear: '$publishedAt' },
-              //   // hour: { $hour: '$publishedAt' },
-              //   // interval: [
-              //   //   {
-              //   //     $minute: '$publishedAt',
-              //   //   },
-              //   //   { $mod: [{ $minute: '$publishedAt' }, 60] },
-              //   // ],
-              //   $dateToString: {
-              //     format: '%Y-%m-%d-%H',
-              //     date: '$publishedAt',
-              //   },
-              //   // hour: '$hour',
-              // },
-
-              //*** To Get Documents also, uncomment line below *** //
-
-              //totalJobPosted: { $push: '$$ROOT' },
-              count: { $sum: 1 },
-            },
-          },
-          //*** below group is to get data on hourly basis for time period provided, Time should be provided in match section ***//
-
-          // {
-          //   $group: {
-          //     _id: {
-          //       hour: '$_id.hour',
-          //     },
-          //
-          //     //dailyCount: { $sum: '$count' },
-          //     hourlyData: {
-          //       $push: { hour: '$_id.hour', count: '$count' },
-          //     },
-          //   },
-          // },
-          {
-            $sort: { _id: -1 },
-          },
-        ],
-
-        { allowDiskUse: true },
-      );
-      // .limit(1000);
-
-      return res;
-    }
-  }
-
   async getJobs(filterDataDto: FilterDataDto): Promise<any> {
     const { country, category, budget } = filterDataDto;
     if (country) {
@@ -370,6 +189,255 @@ export class JobsService {
     // return res;
   }
 
+  async getMostJobPostedOverTimePeriod(
+    startDate,
+    endDate,
+    categories,
+    day,
+  ): Promise<any> {
+    if (categories && startDate && endDate && !day) {
+      // console.log(moment(startDate).add(7, 'days').format('YYYY-MM-DD'));
+      const res = await this.jobModel
+        .aggregate(
+          [
+            {
+              $match: {
+                publishedAt: {
+                  $lt: new Date(startDate),
+                  $gte: new Date(endDate),
+                },
+              },
+            },
+            //*** uncomment the lines below to get the specific job data ***//
+            {
+              $match: {
+                categories: {
+                  $in: categories,
+                },
+              },
+            },
+
+            {
+              $addFields: {
+                uniqueHour: {
+                  $dateToString: {
+                    format: '%H',
+
+                    //*** uncomment the line below to get the daily jobs on hourly basis with date ***//
+                    // format: '%Y-%m-%d-%H',
+                    date: '$publishedAt',
+                  },
+                },
+              },
+            },
+            {
+              $group: {
+                _id: '$uniqueHour',
+                // _id: {
+                //   // "year":{"$year":"$date"},
+                //   hour: { $hour: '$publishedAt' },
+                // },
+
+                //*** below lines are to get data for specific minutes range like 60 minutes ***///
+
+                // first: { $first: '$$ROOT' },
+                // _id: {
+                //   // year: { $year: '$publishedAt' },
+                //   // dayOfYear: { $dayOfYear: '$publishedAt' },
+                //   // hour: { $hour: '$publishedAt' },
+                //   // interval: [
+                //   //   {
+                //   //     $minute: '$publishedAt',
+                //   //   },
+                //   //   { $mod: [{ $minute: '$publishedAt' }, 60] },
+                //   // ],
+                //   $dateToString: {
+                //     format: '%Y-%m-%d-%H',
+                //     date: '$publishedAt',
+                //   },
+                //   // hour: '$hour',
+                // },
+
+                //*** To Get Documents also, uncomment line below *** //
+
+                //totalJobPosted: { $push: '$$ROOT' },
+                count: { $sum: 1 },
+              },
+            },
+
+            //*** below group is to get data on hourly basis for time period provided, Time should be provided in match section ***//
+
+            // {
+            //   $group: {
+            //     _id: {
+            //       hour: '$_id.hour',
+            //     },
+            //
+            //     //dailyCount: { $sum: '$count' },
+            //     hourlyData: {
+            //       $push: { hour: '$_id.hour', count: '$count' },
+            //     },
+            //   },
+            // },
+            {
+              $sort: { _id: -1 },
+            },
+          ],
+          { allowDiskUse: true },
+        )
+        .limit(1000);
+
+      return res;
+    } else if (categories && !startDate && !endDate && !day) {
+      const res = await this.jobModel.aggregate(
+        [
+          {
+            $match: {
+              categories: {
+                $in: categories,
+              },
+            },
+          },
+          {
+            $addFields: {
+              uniqueHour: {
+                $dateToString: {
+                  format: '%H',
+                  date: '$publishedAt',
+                },
+              },
+            },
+          },
+          {
+            $addFields: {
+              categories: categories,
+            },
+          },
+          {
+            $group: {
+              _id: '$uniqueHour',
+
+              //*** below lines are to get data for specific minutes range like 60 minutes ***///
+
+              // first: { $first: '$$ROOT' },
+              // _id: {
+              //   // year: { $year: '$publishedAt' },
+              //   // dayOfYear: { $dayOfYear: '$publishedAt' },
+              //   // hour: { $hour: '$publishedAt' },
+              //   // interval: [
+              //   //   {
+              //   //     $minute: '$publishedAt',
+              //   //   },
+              //   //   { $mod: [{ $minute: '$publishedAt' }, 60] },
+              //   // ],
+              //   $dateToString: {
+              //     format: '%Y-%m-%d-%H',
+              //     date: '$publishedAt',
+              //   },
+              //   // hour: '$hour',
+              // },
+
+              //*** To Get Documents also, uncomment line below *** //
+
+              //totalJobPosted: { $push: '$$ROOT' },
+              count: { $sum: 1 },
+            },
+          },
+          //*** below group is to get data on hourly basis for time period provided, Time should be provided in match section ***//
+
+          // {
+          //   $group: {
+          //     _id: {
+          //       hour: '$_id.hour',
+          //     },
+          //
+          //     //dailyCount: { $sum: '$count' },
+          //     hourlyData: {
+          //       $push: { hour: '$_id.hour', count: '$count' },
+          //     },
+          //   },
+          // },
+          {
+            $sort: { _id: -1 },
+          },
+        ],
+
+        { allowDiskUse: true },
+      );
+      // .limit(1000);
+
+      return res;
+    } else if (categories && startDate && endDate && day) {
+      console.log('day', day);
+      const startDate1 = moment(startDate);
+      const endDate1 = moment(endDate);
+      const arr = [];
+      const tmp = startDate1.clone().day(day - 1);
+      if (tmp.isAfter(startDate1, 'd')) {
+        arr.push(tmp.format('YYYY-MM-DD'));
+      }
+      while (tmp.isBefore(endDate1)) {
+        tmp.add(7, 'days');
+        arr.push(tmp.format('YYYY-MM-DD'));
+      }
+
+      const resultArray = [];
+      console.log(arr);
+      for (let i = 0; i < arr.length; i++) {
+        const res = await this.jobModel
+          .aggregate(
+            [
+              {
+                $match: {
+                  publishedAt: {
+                    $lt: new Date(
+                      new Date(arr[i]).setDate(new Date(arr[i]).getDate() + 1),
+                    ),
+                    $gte: new Date(
+                      new Date(arr[i]).setDate(new Date(arr[i]).getDate() - 1),
+                    ),
+                  },
+                },
+              },
+              {
+                $match: {
+                  categories: {
+                    $in: categories,
+                  },
+                },
+              },
+
+              {
+                $addFields: {
+                  uniqueHour: {
+                    $dateToString: {
+                      format: '%H',
+                      date: '$publishedAt',
+                    },
+                  },
+                },
+              },
+              {
+                $group: {
+                  _id: '$uniqueHour',
+                  count: { $sum: 1 },
+                },
+              },
+
+              {
+                $sort: { _id: -1 },
+              },
+            ],
+            { allowDiskUse: true },
+          )
+          .limit(1000);
+
+        resultArray.push(res);
+      }
+      return resultArray;
+    }
+  }
+
   async getJobPostedWeekly(categories, startDate, endDate): Promise<any> {
     if (categories && startDate && endDate) {
       const res = await this.jobModel.aggregate([
@@ -503,8 +571,6 @@ export class JobsService {
           {
             $match: {
               publishedAt: {
-                //Replace with date variable to get the exact result
-
                 $lt: new Date(startDate),
                 $gt: new Date(endDate),
               },
