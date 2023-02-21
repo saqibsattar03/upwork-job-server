@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 
+const port = 7000;
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors();
@@ -12,6 +13,6 @@ async function bootstrap() {
       enableImplicitConversion: true,
     },
   });
-  await app.listen(7000);
+  await app.listen(port);
 }
 bootstrap();
